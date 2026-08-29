@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>CookOff 11.0</title>
+
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" href="favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="favicon-32x32.png" sizes="32x32">
+    <link rel="icon" type="image/png" href="favicon-48x48.png" sizes="48x48">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Idle / start screen -->
+    <div class="start-overlay active" id="start-overlay">
+
+        <div class="start-content">
+
+            <div class="rift-mark start-mark">
+                <img src="logo.png" alt="CookOff 11.0 logo" class="rift-logo">
+                <svg viewBox="0 0 64 64" fill="none">
+                    <circle cx="32" cy="32" r="26" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" />
+                </svg>
+            </div>
+
+            <div class="start-brand">
+                COOKOFF <span>11.0</span>
+            </div>
+
+            <div class="start-title">
+                Learn. Code. Simplify. 
+            </div>
+
+            <div class="start-prompt" id="start-prompt">
+                PRESS ANYWHERE TO BEGIN
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Difficulty select -->
+    <div class="difficulty-overlay" id="difficulty-overlay">
+
+        <div class="difficulty-content">
+
+            <div class="difficulty-title">
+                HOW FAMILIAR ARE YOU WITH COMPETITIVE PROGRAMMING?
+            </div>
+
+            <div class="difficulty-buttons">
+
+                <button class="difficulty-btn" id="difficulty-easy">
+                    <span class="difficulty-btn-label">NEW TO THE TIMELINE</span>
+                    <span class="difficulty-btn-caption">New to competitive programming</span>
+                </button>
+
+                <button class="difficulty-btn" id="difficulty-intermediate">
+                    <span class="difficulty-btn-label">A FEW JUMPS IN</span>
+                    <span class="difficulty-btn-caption">A little familiar with it</span>
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <main class="page">
+
+        <!-- Header -->
+        <header class="header">
+            <div class="brand">
+                COOKOFF <span>11.0</span>
+            </div>
+
+            <div class="header-meta">
+                <div class="challenge-label">
+                    TEMPORAL CHALLENGE
+                </div>
+
+                <div class="timer" id="timer">
+                    T+ 00.00s
+                </div>
+            </div>
+        </header>
+
+
+        <!-- Question -->
+        <section class="question">
+
+            <p class="eyebrow">
+                TIMELINE ANOMALY DETECTED
+            </p>
+
+            <h1>
+                Realign the sequence. Stabilize the timeline.
+            </h1>
+
+            <p class="description">
+                Arrange the fragments to check whether a number is even.
+                Some fragments may not be needed.
+            </p>
+
+            <p class="hint" id="hint">
+                Use ‹ › on a fragment to nest it inside the branch.
+            </p>
+
+        </section>
+
+
+        <!-- Workspace -->
+        <section class="workspace">
+
+            <!-- Available blocks -->
+            <div class="block-panel">
+
+                <div class="panel-label">
+                    CODE FRAGMENTS
+                </div>
+
+                <div class="blocks" id="block-pool">
+
+                    <div class="block" draggable="true">
+                        <span class="block-text">Read N</span>
+                    </div>
+
+                    <div class="block" draggable="true">
+                        <span class="block-text">if N % 2 == 0:</span>
+                    </div>
+
+                    <div class="block" draggable="true">
+                        <span class="block-text">print("Even")</span>
+                    </div>
+
+                    <div class="block" draggable="true">
+                        <span class="block-text">else:</span>
+                    </div>
+
+                    <div class="block" draggable="true">
+                        <span class="block-text">print("Odd")</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Playground -->
+            <div class="playground">
+
+                <div class="playground-label">
+                    TIMELINE SEQUENCE
+                </div>
+
+                <div class="drop-area">
+
+                    <span class="drop-placeholder">
+                        Drag fragments here to rebuild the sequence
+                    </span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- Action -->
+        <div class="action">
+
+            <button class="evaluate">
+                STABILIZE TIMELINE
+            </button>
+
+            <div class="result" id="result"></div>
+
+        </div>
+
+    </main>
+
+
+    <!-- Success reveal -->
+    <div class="success-overlay" id="success-overlay">
+
+        <div class="success-content">
+
+            <div class="rift-mark success-check" id="success-check">
+                <svg viewBox="0 0 64 64" fill="none">
+                    <circle cx="32" cy="32" r="26" stroke="rgba(255,255,255,0.3)" stroke-width="1.5" />
+                    <path id="success-check-path" d="M19 33.5L27.5 42L45 22" stroke="#f5f4fa" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </div>
+
+            <div class="success-word" id="success-word">
+                STABILIZED
+            </div>
+
+            <div class="success-time" id="success-time">
+                T+ 00.00s
+            </div>
+
+            <div class="success-line" id="success-line">
+                First jump complete, traveler.
+            </div>
+
+            <button class="success-dismiss" id="success-dismiss">
+                JUMP AGAIN
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- Transition flash — layered on top of the overlay
+         crossfade, never a replacement for it -->
+    <div class="jump-flash" id="jump-flash" aria-hidden="true"></div>
+
+
+    <script src="script.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,968 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    height: 100%;
+}
+
+:root {
+    --void: #05040a;
+    --void-2: #0b0714;
+    --rift-violet: #7c3aed;
+    --rift-violet-soft: rgba(124, 58, 237, 0.35);
+    --chrono-cyan: #22d3ee;
+    --chrono-cyan-soft: rgba(34, 211, 238, 0.35);
+    --flux-amber: #ffb020;
+    --ink: #f5f4fa;
+    --ink-dim: rgba(245, 244, 250, 0.55);
+    --ink-faint: rgba(245, 244, 250, 0.35);
+
+    --font-display: "Orbitron", sans-serif;
+    --font-heading: "Space Grotesk", sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
+}
+
+body {
+    height: 100vh;
+    overflow: hidden;
+    position: relative;
+    background:
+        radial-gradient(circle at 50% -10%, rgba(124, 58, 237, 0.16) 0%, transparent 55%),
+        radial-gradient(circle at 80% 100%, rgba(34, 211, 238, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 50% 0%, var(--void-2) 0%, var(--void) 45%, #030209 100%);
+    color: var(--ink);
+    font-family: var(--font-heading), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* Ambient console texture — a faint coordinate grid plus
+   scanlines, both decorative and both non-interactive.
+   Kept subtle on purpose: the challenge screen still has
+   to be read and worked, not just looked at. */
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background-image:
+        repeating-linear-gradient(90deg, rgba(124, 58, 237, 0.05) 0px, rgba(124, 58, 237, 0.05) 1px, transparent 1px, transparent 42px),
+        repeating-linear-gradient(0deg, rgba(34, 211, 238, 0.04) 0px, rgba(34, 211, 238, 0.04) 1px, transparent 1px, transparent 42px);
+}
+
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.5;
+    mix-blend-mode: overlay;
+    background-image: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 0px, rgba(255, 255, 255, 0.035) 1px, transparent 1px, transparent 3px);
+}
+
+.page {
+    position: relative;
+    z-index: 2;
+    height: 100vh;
+    width: min(1400px, 92vw);
+    margin: 0 auto;
+    padding: clamp(16px, 2.5vh, 32px) 0 clamp(16px, 2.5vh, 32px);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: clamp(12px, 2vh, 24px);
+    border-bottom: 1px solid rgba(124, 58, 237, 0.16);
+    flex-shrink: 0;
+}
+
+.brand {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+}
+
+.brand span {
+    color: var(--chrono-cyan);
+    opacity: 0.75;
+    font-weight: 500;
+}
+
+.header-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.challenge-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: rgba(199, 190, 255, 0.4);
+}
+
+.timer {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: rgba(34, 211, 238, 0.65);
+    transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+
+.timer.running {
+    color: var(--chrono-cyan);
+    text-shadow: 0 0 14px var(--chrono-cyan-soft);
+}
+
+/* Question */
+
+.question {
+    max-width: 760px;
+    margin: clamp(16px, 3.5vh, 40px) 0 clamp(14px, 2.5vh, 28px);
+    flex-shrink: 0;
+}
+
+.eyebrow {
+    margin-bottom: 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    color: var(--flux-amber);
+    opacity: 0.85;
+}
+
+h1 {
+    font-family: var(--font-heading);
+    font-size: clamp(24px, 3.6vh, 40px);
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    background: linear-gradient(120deg, var(--ink) 45%, var(--chrono-cyan) 120%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.description {
+    max-width: 600px;
+    margin-top: 14px;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink-dim);
+}
+
+.hint {
+    max-width: 600px;
+    margin-top: 8px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    color: rgba(196, 168, 255, 0.9);
+}
+
+.hint:empty {
+    display: none;
+}
+
+/* Workspace */
+
+.workspace {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 16px;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Panels */
+
+.block-panel,
+.playground {
+    position: relative;
+    border: 1px solid rgba(124, 58, 237, 0.16);
+    border-radius: 18px;
+    background: linear-gradient(145deg, rgba(124, 58, 237, 0.055), rgba(34, 211, 238, 0.02));
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.block-panel {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.playground {
+    padding: 18px;
+    min-height: 0;
+}
+
+/* Labels */
+
+.panel-label,
+.playground-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    color: rgba(199, 190, 255, 0.4);
+}
+
+/* Block pool */
+
+.blocks {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Blocks ("code fragments") */
+
+.block {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    border: 1px solid rgba(34, 211, 238, 0.18);
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(34, 211, 238, 0.08), rgba(124, 58, 237, 0.04));
+    color: rgba(245, 244, 250, 0.9);
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    cursor: grab;
+    user-select: none;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 20px rgba(0, 0, 0, 0.25);
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease, margin-left 0.15s ease;
+}
+
+.block-text {
+    flex: 1;
+}
+
+.block-text::before {
+    content: "> ";
+    color: var(--chrono-cyan);
+    opacity: 0.6;
+}
+
+.block:hover {
+    transform: translateY(-1px);
+    border-color: rgba(34, 211, 238, 0.4);
+}
+
+.block:active {
+    cursor: grabbing;
+}
+
+.block.dragging {
+    opacity: 0.35;
+}
+
+.block.placed {
+    width: min(420px, 80%);
+    background: linear-gradient(135deg, rgba(34, 211, 238, 0.12), rgba(124, 58, 237, 0.06));
+}
+
+/* Indent controls — only rendered for questions with a
+   branch or loop (requiresIndent), and only usable once a
+   block has actually been placed in the playground. */
+
+.block-indent-controls {
+    display: none;
+    flex-shrink: 0;
+    gap: 4px;
+}
+
+.block.placed .block-indent-controls {
+    display: flex;
+}
+
+.indent-btn {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(34, 211, 238, 0.25);
+    border-radius: 6px;
+    background: rgba(34, 211, 238, 0.08);
+    color: var(--chrono-cyan);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.indent-btn:hover:not(:disabled) {
+    background: rgba(34, 211, 238, 0.18);
+    border-color: rgba(34, 211, 238, 0.5);
+}
+
+.indent-btn:disabled {
+    opacity: 0.25;
+    cursor: default;
+}
+
+/* Nesting — an indented fragment visually tucks under
+   whatever sits above it, connected with a violet line so
+   the "belongs to the branch/loop above" relationship
+   reads at a glance. */
+
+.block.placed[data-indent="1"] {
+    margin-left: 34px;
+    position: relative;
+}
+
+.block.placed[data-indent="1"]::after {
+    content: "";
+    position: absolute;
+    left: -18px;
+    top: 50%;
+    width: 12px;
+    height: 1px;
+    background: rgba(124, 58, 237, 0.5);
+}
+
+/* Playground */
+
+.drop-area {
+    position: absolute;
+    top: 54px;
+    right: 18px;
+    bottom: 18px;
+    left: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 30px;
+    border: 1px dashed rgba(124, 58, 237, 0.25);
+    border-radius: 12px;
+    color: rgba(199, 190, 255, 0.3);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.drop-area.drag-over {
+    border-color: rgba(34, 211, 238, 0.5);
+    background: rgba(34, 211, 238, 0.03);
+}
+
+.drop-area.shake {
+    animation: shake 0.4s ease;
+    border-color: var(--flux-amber);
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(7px); }
+    60% { transform: translateX(-5px); }
+    80% { transform: translateX(3px); }
+}
+
+/* Pool as a return target */
+
+.blocks.pool-over {
+    outline: 1px dashed rgba(34, 211, 238, 0.35);
+    outline-offset: 6px;
+    border-radius: 10px;
+}
+
+/* Action */
+
+.action {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+    flex-shrink: 0;
+}
+
+.evaluate {
+    padding: 14px 26px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(120deg, var(--chrono-cyan), var(--rift-violet));
+    color: var(--void);
+    font-family: var(--font-heading);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15) inset, 0 10px 30px rgba(124, 58, 237, 0.35);
+    animation: evaluatePulse 3.2s ease-in-out infinite;
+    transition: transform 0.15s ease;
+}
+
+@keyframes evaluatePulse {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15) inset, 0 10px 30px rgba(124, 58, 237, 0.35); }
+    50% { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2) inset, 0 10px 42px rgba(34, 211, 238, 0.45); }
+}
+
+.evaluate:hover {
+    transform: translateY(-1px);
+}
+
+.evaluate:active {
+    transform: translateY(0);
+}
+
+/* Evaluation result */
+
+.result {
+    min-height: 15px;
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--ink-faint);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.result.visible {
+    opacity: 1;
+}
+
+.result.success {
+    color: var(--chrono-cyan);
+}
+
+.result.failure {
+    color: var(--flux-amber);
+}
+
+/* Idle / start screen */
+
+.start-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(3, 2, 8, 0.88);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    opacity: 1;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: opacity 0.6s ease;
+    z-index: 60;
+}
+
+.start-overlay:not(.active) {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.start-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 4px;
+    width: min(900px, 88vw);
+}
+
+/* The rift — the one signature element, reused on the
+   idle screen and the success screen: a dual-ring portal
+   rotating in opposite directions around the existing
+   circle/checkmark mark. */
+
+.rift-mark {
+    position: relative;
+}
+
+.rift-mark::before,
+.rift-mark::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.rift-mark::before {
+    inset: -10px;
+    border: 1px solid rgba(124, 58, 237, 0.55);
+    border-top-color: transparent;
+    border-bottom-color: transparent;
+    animation: spin 9s linear infinite;
+}
+
+.rift-mark::after {
+    inset: 10px;
+    border: 1px solid rgba(34, 211, 238, 0.55);
+    border-left-color: transparent;
+    border-right-color: transparent;
+    animation: spin 6.5s linear infinite reverse;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.start-mark {
+    width: clamp(90px, 12vw, 150px);
+    height: clamp(90px, 12vw, 150px);
+    margin-bottom: clamp(30px, 4vh, 48px);
+    filter: drop-shadow(0 0 16px rgba(124, 58, 237, 0.4)) drop-shadow(0 0 8px rgba(34, 211, 238, 0.25));
+}
+
+.start-mark svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* Sized to exactly fill the circle drawn in the SVG
+   (r=26 in a 64 viewBox -> 81.25% of the box), so the
+   logo sits inside the ring rather than under it. */
+
+.rift-logo {
+    position: absolute;
+    inset: 9.375%;
+    width: 81.25%;
+    height: 81.25%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.start-brand {
+    font-family: var(--font-display);
+    font-size: clamp(26px, 4.2vw, 46px);
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--ink);
+}
+
+.start-brand span {
+    color: var(--chrono-cyan);
+    opacity: 0.75;
+    font-weight: 500;
+}
+
+.start-title {
+    margin-top: 16px;
+    font-family: var(--font-mono);
+    font-size: clamp(13px, 1.4vw, 16px);
+    font-weight: 600;
+    letter-spacing: 0.24em;
+    color: rgba(199, 190, 255, 0.45);
+}
+
+.start-prompt {
+    margin-top: clamp(56px, 9vh, 88px);
+    font-family: var(--font-heading);
+    font-size: clamp(14px, 1.5vw, 17px);
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--chrono-cyan);
+    text-shadow: 0 0 12px var(--chrono-cyan-soft);
+    animation: pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 0.95; }
+}
+
+/* Difficulty select */
+
+.difficulty-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(3, 2, 8, 0.88);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease;
+    z-index: 70;
+}
+
+.difficulty-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.difficulty-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0;
+    padding: 0 24px;
+    width: min(920px, 90vw);
+}
+
+/* The overlay itself clips the crawl so the title is
+   invisible until the animation brings it into frame,
+   rather than briefly overflowing the viewport. */
+
+.difficulty-overlay {
+    overflow: hidden;
+}
+
+.difficulty-title {
+    max-width: 640px;
+    font-family: var(--font-mono);
+    font-size: clamp(14px, 1.7vw, 18px);
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: rgba(199, 190, 255, 0.55);
+    margin-bottom: clamp(40px, 6vh, 60px);
+
+    /* Held off-screen to the right until the intro class
+       plays crawlIn; see chooseDifficulty()/beginChallenge()
+       in script.js, which restart this animation on every
+       visit to the screen. */
+    opacity: 0;
+    transform: translateX(60vw);
+}
+
+.difficulty-content.intro .difficulty-title {
+    animation: crawlIn 1.15s cubic-bezier(0.22, 0.68, 0.36, 1) forwards;
+}
+
+@keyframes crawlIn {
+    0% { opacity: 0; transform: translateX(60vw); }
+    12% { opacity: 1; }
+    100% { opacity: 1; transform: translateX(0); }
+}
+
+.difficulty-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    width: min(560px, 88vw);
+}
+
+.difficulty-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: clamp(20px, 2.6vw, 28px) clamp(22px, 3vw, 32px);
+    border: 1px solid rgba(124, 58, 237, 0.3);
+    border-radius: 14px;
+    background: linear-gradient(145deg, rgba(124, 58, 237, 0.1), rgba(34, 211, 238, 0.03));
+    color: var(--ink);
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+
+    /* Rolled shut (clipped from the right) until the intro
+       class plays rollOut, staggered per button below. */
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+}
+
+.difficulty-content.intro .difficulty-btn {
+    animation: rollOut 0.7s cubic-bezier(0.3, 0.86, 0.36, 1) forwards;
+}
+
+.difficulty-content.intro .difficulty-btn:nth-child(1) {
+    animation-delay: 1.05s;
+}
+
+.difficulty-content.intro .difficulty-btn:nth-child(2) {
+    animation-delay: 1.4s;
+}
+
+@keyframes rollOut {
+    0% { opacity: 0; clip-path: inset(0 100% 0 0); }
+    2% { opacity: 1; }
+    100% { opacity: 1; clip-path: inset(0 0% 0 0); }
+}
+
+.difficulty-btn-label {
+    font-family: var(--font-heading);
+    font-size: clamp(15px, 1.7vw, 18px);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.difficulty-btn-caption {
+    font-family: var(--font-mono);
+    font-size: clamp(11.5px, 1.2vw, 13px);
+    color: rgba(199, 190, 255, 0.45);
+}
+
+.difficulty-btn:hover {
+    transform: translateY(-1px);
+    border-color: rgba(34, 211, 238, 0.55);
+    background: linear-gradient(145deg, rgba(34, 211, 238, 0.12), rgba(124, 58, 237, 0.05));
+}
+
+.difficulty-btn:active {
+    transform: translateY(0);
+}
+
+/* Success overlay */
+
+.success-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(3, 2, 8, 0.85);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    z-index: 55;
+}
+
+.success-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.success-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 4px;
+}
+
+.success-check {
+    width: 84px;
+    height: 84px;
+    margin-bottom: 20px;
+    opacity: 0;
+    transform: scale(0.7);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    filter: drop-shadow(0 0 18px rgba(34, 211, 238, 0.45)) drop-shadow(0 0 10px rgba(124, 58, 237, 0.3));
+}
+
+.success-overlay.active .success-check {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.success-check svg {
+    width: 100%;
+    height: 100%;
+}
+
+#success-check-path {
+    stroke-dasharray: 40;
+    stroke-dashoffset: 40;
+    transition: stroke-dashoffset 0.5s ease 0.25s;
+}
+
+.success-overlay.active #success-check-path {
+    stroke-dashoffset: 0;
+}
+
+.success-word {
+    font-family: var(--font-heading);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.28em;
+    color: var(--chrono-cyan);
+    text-shadow: 0 0 14px var(--chrono-cyan-soft);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.4s ease 0.4s, transform 0.4s ease 0.4s;
+}
+
+.success-time {
+    margin-top: 14px;
+    font-family: var(--font-display);
+    font-size: clamp(32px, 5.5vw, 52px);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.4s ease 0.6s, transform 0.4s ease 0.6s;
+}
+
+.success-line {
+    margin-top: 22px;
+    font-family: var(--font-heading);
+    font-size: clamp(18px, 2.4vw, 26px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: rgba(245, 244, 250, 0.88);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.4s ease 0.85s, transform 0.4s ease 0.85s;
+}
+
+.success-dismiss {
+    margin-top: 40px;
+    padding: 13px 26px;
+    border: 1px solid rgba(34, 211, 238, 0.35);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--chrono-cyan);
+    font-family: var(--font-heading);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.4s ease 1.1s, transform 0.4s ease 1.1s, background 0.15s ease, color 0.15s ease;
+}
+
+.success-overlay.active .success-word,
+.success-overlay.active .success-time,
+.success-overlay.active .success-line,
+.success-overlay.active .success-dismiss {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.success-dismiss:hover {
+    background: rgba(34, 211, 238, 0.12);
+    color: var(--ink);
+}
+
+/* Jump flash — layered on top of the overlay crossfade at
+   the moment of transition, never a substitute for it. The
+   crossfade already guarantees the page is never uncovered;
+   this just makes the swap feel like a jump through time. */
+
+.jump-flash {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.9) 0%, rgba(34, 211, 238, 0.35) 25%, rgba(124, 58, 237, 0.25) 55%, transparent 75%);
+    mix-blend-mode: screen;
+}
+
+.jump-flash::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    background-image: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.09) 0px, rgba(255, 255, 255, 0.09) 2px, transparent 2px, transparent 5px);
+    mix-blend-mode: overlay;
+}
+
+.jump-flash.active {
+    animation: jumpFlash 0.65s ease-out;
+}
+
+.jump-flash.active::after {
+    animation: glitchBands 0.65s steps(10);
+}
+
+@keyframes jumpFlash {
+    0% { opacity: 0; transform: scale(0.85); }
+    16% { opacity: 1; transform: scale(1.02); }
+    55% { opacity: 0.5; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.2); }
+}
+
+@keyframes glitchBands {
+    0%, 100% { opacity: 0; transform: translateX(0); }
+    8% { opacity: 0.5; transform: translateX(-6px); }
+    22% { opacity: 0.35; transform: translateX(5px); }
+    38% { opacity: 0.4; transform: translateX(-4px); }
+    55% { opacity: 0.25; transform: translateX(3px); }
+    75% { opacity: 0.12; transform: translateX(-2px); }
+}
+
+/* Motion sensitivity — the console still has to work with
+   animation turned off, not just look calmer without it. */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .rift-mark::before,
+    .rift-mark::after,
+    .start-prompt,
+    .evaluate,
+    .timer,
+    .difficulty-title,
+    .difficulty-btn {
+        animation: none !important;
+    }
+
+    .difficulty-title,
+    .difficulty-btn {
+        opacity: 1 !important;
+        transform: none !important;
+        clip-path: none !important;
+    }
+
+    .jump-flash,
+    .jump-flash.active,
+    .jump-flash.active::after {
+        display: none !important;
+    }
+
+}
+
+/* Responsive */
+
+@media (max-width: 800px) {
+
+    body {
+        height: auto;
+        min-height: 100vh;
+        overflow-y: auto;
+    }
+
+    .page {
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .question {
+        margin-top: 40px;
+    }
+
+    .workspace {
+        grid-template-columns: 1fr;
+        flex: none;
+    }
+
+    .block-panel {
+        min-height: auto;
+    }
+
+    .blocks {
+        flex: none;
+        max-height: 220px;
+    }
+
+    .playground {
+        min-height: 380px;
+    }
+}
