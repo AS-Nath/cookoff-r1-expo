@@ -24,19 +24,241 @@ let draggedBlock = null;
 
 
 /* -------------------------
+   Mini compiler
+
+   The old check compared the
+   placed sequence against ONE
+   hardcoded correct order —
+   so independent steps that
+   could legally go in either
+   order (like two unrelated
+   reads) got marked wrong for
+   being "out of order" when
+   they weren't actually wrong.
+
+   This replaces that with an
+   actual build-and-run step:
+   each block carries a `kind`
+   plus the logic behind it
+   (a condition function, an
+   expression, etc.), and
+   `checkSolution` assembles
+   whatever the visitor placed
+   into a real program (respecting
+   the ‹ › indentation as
+   branch/loop nesting) and runs
+   it against a few test inputs,
+   just like an online judge
+   would. Any arrangement that
+   produces the right output for
+   every test case passes — a
+   swapped pair of independent
+   statements still runs fine
+   and still passes; a step used
+   before it's read, a missing
+   branch, or a decoy folded in
+   changes the output and fails,
+   without a special-cased rule
+   for any of those specifically.
+------------------------- */
+
+class StructuralError extends Error {}
+
+function buildProgram(sequence) {
+
+    const program = [];
+    let openHeader = null; // { node, mode: "body" | "else" }
+
+    for (const item of sequence) {
+
+        const { descriptor, indent } = item;
+
+        if (indent === 0) {
+
+            if (descriptor.kind === "else") {
+
+                const last = program[program.length - 1];
+
+                if (!last || last.kind !== "if" || last.elseBody !== null) {
+                    throw new StructuralError(
+                        "`else:` has to directly follow a completed `if` branch."
+                    );
+                }
+
+                last.elseBody = [];
+                openHeader = { node: last, mode: "else" };
+
+                continue;
+
+            }
+
+            const node = { ...descriptor, body: [] };
+
+            if (descriptor.kind === "if") node.elseBody = null;
+
+            program.push(node);
+
+            openHeader =
+                (descriptor.kind === "if" || descriptor.kind === "for")
+                    ? { node, mode: "body" }
+                    : null;
+
+        } else {
+
+            if (!openHeader) {
+                throw new StructuralError(
+                    "A nested fragment needs a branch or loop above it to belong to."
+                );
+            }
+
+            const leaf = { ...descriptor };
+
+            if (openHeader.mode === "body") {
+                openHeader.node.body.push(leaf);
+            } else {
+                openHeader.node.elseBody.push(leaf);
+            }
+
+        }
+
+    }
+
+    return program;
+
+}
+
+
+function runProgram(program, input) {
+
+    const state = {};
+    const cursor = { i: 0 };
+    const output = [];
+
+    function execList(list) {
+        for (const node of list) execNode(node);
+    }
+
+    function execNode(node) {
+
+        switch (node.kind) {
+
+            case "read":
+                state[node.varName] = input[node.varName];
+                break;
+
+            case "assign":
+                state[node.varName] = node.expr(state);
+                break;
+
+            case "if":
+                if (node.cond(state)) {
+                    execList(node.body);
+                } else if (node.elseBody) {
+                    execList(node.elseBody);
+                }
+                break;
+
+            case "for": {
+                const count = state[node.countVar];
+                if (!Number.isFinite(count)) {
+                    throw new Error(node.countVar + " isn't a number yet");
+                }
+                for (let i = 0; i < count; i++) {
+                    state[node.loopVar] = i;
+                    execList(node.body || []);
+                }
+                break;
+            }
+
+            case "readAdd": {
+                const numbers = input.numbers || [];
+                const value = numbers[cursor.i];
+                cursor.i += 1;
+                if (typeof state[node.varName] !== "number") {
+                    throw new Error(node.varName + " was never initialized");
+                }
+                state[node.varName] += value;
+                break;
+            }
+
+            case "print":
+                output.push(String(node.value(state)));
+                break;
+
+            default:
+                throw new Error("Unknown fragment kind: " + node.kind);
+
+        }
+
+    }
+
+    execList(program);
+
+    return output;
+
+}
+
+
+function checkSolution(sequence, question) {
+
+    let program;
+
+    try {
+        program = buildProgram(sequence);
+    } catch (err) {
+        return {
+            correct: false,
+            message: err.message || "That arrangement doesn't form a valid structure."
+        };
+    }
+
+    for (const testCase of question.testCases) {
+
+        let output;
+
+        try {
+            output = runProgram(program, testCase.input);
+        } catch (err) {
+            return {
+                correct: false,
+                message: "That arrangement doesn't run cleanly — check the order and nesting."
+            };
+        }
+
+        const expected = testCase.expected.map(String);
+
+        const matches =
+            output.length === expected.length &&
+            output.every((line, i) => line === expected[i]);
+
+        if (!matches) {
+            return {
+                correct: false,
+                message: "Not stable yet. Check the order — and nesting — of your fragments."
+            };
+        }
+
+    }
+
+    return { correct: true };
+
+}
+
+
+/* -------------------------
    Questions
 
-   A flat "put these in order"
-   check can't represent a
-   branch — so questions that
-   need an if/else now carry
-   requiresIndent: true, and
-   each block gets an indent
-   level (0 or 1) the visitor
-   sets themselves with the
-   ‹ › controls once it's
-   placed. correctSequence
-   checks text AND indent.
+   Each block is a descriptor,
+   not just display text: a
+   `kind` plus whatever logic
+   that kind needs (a `cond`
+   function, an `expr`, a
+   `value` to print...). That's
+   what the compiler above
+   builds and runs. `text` is
+   only for display and as the
+   lookup key back to the
+   descriptor.
 
    Any block text used as a
    value (like N) is named on
@@ -53,19 +275,18 @@ const QUESTIONS = {
         hint: "Use the ‹ › arrows on a fragment to nest it inside the branch.",
         requiresIndent: true,
         blocks: [
-            "Read N",
-            "if N % 2 == 0:",
-            "print(\"Even\")",
-            "else:",
-            "print(\"Odd\")",
-            "print(\"Maybe\")"
+            { text: "Read N", kind: "read", varName: "N" },
+            { text: "if N % 2 == 0:", kind: "if", cond: state => state.N % 2 === 0 },
+            { text: "print(\"Even\")", kind: "print", value: () => "Even" },
+            { text: "else:", kind: "else" },
+            { text: "print(\"Odd\")", kind: "print", value: () => "Odd" },
+            { text: "print(\"Maybe\")", kind: "print", value: () => "Maybe" }
         ],
-        correctSequence: [
-            { text: "Read N", indent: 0 },
-            { text: "if N % 2 == 0:", indent: 0 },
-            { text: "print(\"Even\")", indent: 1 },
-            { text: "else:", indent: 0 },
-            { text: "print(\"Odd\")", indent: 1 }
+        testCases: [
+            { input: { N: 4 }, expected: ["Even"] },
+            { input: { N: 7 }, expected: ["Odd"] },
+            { input: { N: 0 }, expected: ["Even"] },
+            { input: { N: -3 }, expected: ["Odd"] }
         ]
     },
 
@@ -74,25 +295,24 @@ const QUESTIONS = {
         hint: "Use the ‹ › arrows on a fragment to nest it inside the loop.",
         requiresIndent: true,
         blocks: [
-            "Read N (the count of numbers)",
-            "sum = 0",
-            "for i in range(N):",
-            "read a number, add it to sum",
-            "Print sum",
-            "Print N"
+            { text: "Read N (the count of numbers)", kind: "read", varName: "N" },
+            { text: "sum = 0", kind: "assign", varName: "sum", expr: () => 0 },
+            { text: "for i in range(N):", kind: "for", loopVar: "i", countVar: "N" },
+            { text: "read a number, add it to sum", kind: "readAdd", varName: "sum" },
+            { text: "Print sum", kind: "print", value: state => state.sum },
+            { text: "Print N", kind: "print", value: state => state.N }
         ],
-        correctSequence: [
-            { text: "Read N (the count of numbers)", indent: 0 },
-            { text: "sum = 0", indent: 0 },
-            { text: "for i in range(N):", indent: 0 },
-            { text: "read a number, add it to sum", indent: 1 },
-            { text: "Print sum", indent: 0 }
+        testCases: [
+            { input: { N: 3, numbers: [3, 5, 2] }, expected: [10] },
+            { input: { N: 2, numbers: [10, 10] }, expected: [20] },
+            { input: { N: 4, numbers: [1, 1, 1, 1] }, expected: [4] }
         ]
     }
 
 };
 
-let currentCorrectSequence = QUESTIONS.easy.correctSequence;
+let currentQuestion = QUESTIONS.easy;
+let blockDescriptorsByText = new Map(currentQuestion.blocks.map(b => [b.text, b]));
 
 
 /* -------------------------
@@ -204,6 +424,9 @@ function loadQuestion(key) {
 
     const question = QUESTIONS[key];
 
+    currentQuestion = question;
+    blockDescriptorsByText = new Map(question.blocks.map(b => [b.text, b]));
+
     descriptionEl.textContent = question.description;
     hintEl.textContent = question.hint || "";
 
@@ -212,11 +435,9 @@ function loadQuestion(key) {
     blockPool.innerHTML = "";
     dropArea.querySelectorAll(".block").forEach(block => block.remove());
 
-    shuffle(question.blocks).forEach(text => {
-        blockPool.appendChild(createBlock(text, question.requiresIndent));
+    shuffle(question.blocks).forEach(descriptor => {
+        blockPool.appendChild(createBlock(descriptor.text, question.requiresIndent));
     });
-
-    currentCorrectSequence = question.correctSequence;
 
     updateDropArea();
 
@@ -561,18 +782,13 @@ evaluateButton.addEventListener("click", () => {
     const sequence = [
         ...dropArea.querySelectorAll(".block")
     ].map(block => ({
-        text: block.dataset.text,
+        descriptor: blockDescriptorsByText.get(block.dataset.text),
         indent: parseInt(block.dataset.indent, 10)
     }));
 
-    const isCorrect =
-        sequence.length === currentCorrectSequence.length &&
-        sequence.every((block, index) =>
-            block.text === currentCorrectSequence[index].text &&
-            block.indent === currentCorrectSequence[index].indent
-        );
+    const result = checkSolution(sequence, currentQuestion);
 
-    if (isCorrect) {
+    if (result.correct) {
 
         const elapsed = stopTimer();
 
@@ -580,7 +796,7 @@ evaluateButton.addEventListener("click", () => {
 
     } else {
 
-        showResult("Not stable yet. Check the order — and nesting — of your fragments.");
+        showResult(result.message);
 
         dropArea.classList.remove("shake");
 
